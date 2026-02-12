@@ -275,7 +275,8 @@ export async function getEventLogs(
 export async function getCustomTableRows(
   devID: string,
   page = 1,
-  limit = 100
+  limit = 100,
+  dateRange?: { startTime: string; endTime: string }
 ): Promise<CustomTableResponse> {
   return request<CustomTableResponse>(
     `${BASE_URL}/api/account/table/getRows3`,
@@ -285,6 +286,7 @@ export async function getCustomTableRows(
       page,
       limit,
       rawData: true,
+      ...(dateRange ? { startTime: dateRange.startTime, endTime: dateRange.endTime } : {}),
     }
   );
 }

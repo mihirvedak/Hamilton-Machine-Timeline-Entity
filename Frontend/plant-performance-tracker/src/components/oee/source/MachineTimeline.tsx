@@ -167,7 +167,15 @@ const MachineTimeline = () => {
     setDataLoading(true);
     setShowRows(false);
     try {
-      const res = await getCustomTableRows(devId, currentPage, itemsPerPage);
+      // Build date range for custom filter
+      const dateRange = eventsFilter === "custom" && customDateRange
+        ? {
+            startTime: `${format(customDateRange.from, "yyyy-MM-dd")} ${customDateRange.startTime}`,
+            endTime: `${format(customDateRange.to, "yyyy-MM-dd")} ${customDateRange.endTime}`,
+          }
+        : undefined;
+
+      const res = await getCustomTableRows(devId, currentPage, itemsPerPage, dateRange);
       if (res.success && res.data) {
         setTableRows(res.data.rows?.map((r) => r.data) || []);
         setTotalCount(res.data.totalCount || 0);
@@ -180,24 +188,39 @@ const MachineTimeline = () => {
       setDataLoading(false);
       setTimeout(() => setShowRows(true), 100);
     }
-  }, [selectedMachine, machineToDeviceId, currentPage, itemsPerPage]);
+  }, [selectedMachine, machineToDeviceId, currentPage, itemsPerPage, eventsFilter, customDateRange]);
 
   useEffect(() => {
     fetchTableData();
   }, [fetchTableData]);
 
-  // Reset page when machine or itemsPerPage changes
+  // Reset page when machine, itemsPerPage, or filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedMachine, itemsPerPage]);
+  }, [selectedMachine, itemsPerPage, eventsFilter, customDateRange]);
 
   // ── Derived values ──
   const totalPages = Math.ceil(totalCount / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + tableRows.length, totalCount);
 
-  // Client-side search filter (across visible columns)
+  // ── Dynamically find chart columns from metadata ──
+  const startTimeCol = columns.find((c) => c.sensorName.toLowerCase().includes("start time") || c.sensorName.toLowerCase().includes("event start"));
+  const endTimeCol = columns.find((c) => c.sensorName.toLowerCase().includes("end time") || c.sensorName.toLowerCase().includes("event end"));
+  const statusCol = columns.find((c) => c.sensorName.toLowerCase().includes("machine status"));
+  const reasonCol = columns.find((c) => c.sensorName.toLowerCase().includes("reason"));
+
+  // Client-side filters: search, column filters, and events filter (machine status)
   const filteredRows = tableRows.filter((row) => {
+    // Events filter by machine status
+    if (eventsFilter !== "all" && eventsFilter !== "custom" && statusCol) {
+      const statusVal = (row[statusCol.sensorId] as string || "").toLowerCase();
+      if (eventsFilter === "production" && !statusVal.includes("production")) return false;
+      if (eventsFilter === "downtime" && !statusVal.includes("downtime")) return false;
+      if (eventsFilter === "disconnected" && !statusVal.includes("disconnected")) return false;
+    }
+    return true;
+  }).filter((row) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return columns.some((col) => {
@@ -211,12 +234,6 @@ const MachineTimeline = () => {
       return val !== undefined && val !== null && String(val).toLowerCase().includes(filter.value.toLowerCase());
     });
   });
-
-  // ── Dynamically find chart columns from metadata ──
-  const startTimeCol = columns.find((c) => c.sensorName.toLowerCase().includes("start time") || c.sensorName.toLowerCase().includes("event start"));
-  const endTimeCol = columns.find((c) => c.sensorName.toLowerCase().includes("end time") || c.sensorName.toLowerCase().includes("event end"));
-  const statusCol = columns.find((c) => c.sensorName.toLowerCase().includes("machine status"));
-  const reasonCol = columns.find((c) => c.sensorName.toLowerCase().includes("reason"));
 
   // ── Chart data — current page events, reversed so oldest is leftmost ──
   const allPoints = [...filteredRows].reverse().map((row) => {
