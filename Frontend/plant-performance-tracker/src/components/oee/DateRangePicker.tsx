@@ -128,8 +128,8 @@ const DateRangePicker = ({ onDateRangeChange, showPeriodicity = true }: DateRang
     const range = getPresetDateRange("current-week");
     return { from: range.from, to: range.to };
   });
-  const [startTime, setStartTime] = useState("06:00");
-  const [endTime, setEndTime] = useState("14:05");
+  const [startTime, setStartTime] = useState("07:00");
+  const [endTime, setEndTime] = useState("07:00");
   const [availablePeriodicityOptions, setAvailablePeriodicityOptions] = useState<
     { value: Periodicity; label: string }[]
   >([{ value: "weekly", label: "Weekly" }, { value: "daily", label: "Daily" }]);
@@ -145,6 +145,8 @@ const DateRangePicker = ({ onDateRangeChange, showPeriodicity = true }: DateRang
     if (tempPreset !== "custom") {
       const range = getPresetDateRange(tempPreset);
       setTempDateRange({ from: range.from, to: range.to });
+      setTempStartTime("07:00");
+      setTempEndTime("07:00");
     }
   }, [tempPreset]);
 
@@ -283,7 +285,11 @@ const DateRangePicker = ({ onDateRangeChange, showPeriodicity = true }: DateRang
                 selected={tempDateRange}
                 onSelect={(range) => {
                   setTempDateRange(range);
-                  if (range) setTempPreset("custom");
+                  if (range) {
+                    setTempPreset("custom");
+                    setTempStartTime("07:00");
+                    setTempEndTime("07:00");
+                  }
                 }}
                 numberOfMonths={1}
                 className="pointer-events-auto"

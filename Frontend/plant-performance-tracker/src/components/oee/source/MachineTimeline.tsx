@@ -158,6 +158,12 @@ const MachineTimeline = () => {
     return () => { cancelled = true; };
   }, [selectedMachine, machineToDeviceId]);
 
+  // ── Dynamically find chart columns from metadata ──
+  const startTimeCol = columns.find((c) => c.sensorName.toLowerCase().includes("start time") || c.sensorName.toLowerCase().includes("event start"));
+  const endTimeCol = columns.find((c) => c.sensorName.toLowerCase().includes("end time") || c.sensorName.toLowerCase().includes("event end"));
+  const statusCol = columns.find((c) => c.sensorName.toLowerCase().includes("machine status"));
+  const reasonCol = columns.find((c) => c.sensorName.toLowerCase().includes("reason"));
+
   // ── 3. Fetch table data using D4 device ID with page/limit from UI ──
   const fetchTableData = useCallback(async () => {
     if (!selectedMachine) return;
@@ -167,15 +173,17 @@ const MachineTimeline = () => {
     setDataLoading(true);
     setShowRows(false);
     try {
-      // Build date range for custom filter
-      const dateRange = eventsFilter === "custom" && customDateRange
-        ? {
-            startTime: `${format(customDateRange.from, "yyyy-MM-dd")} ${customDateRange.startTime}`,
-            endTime: `${format(customDateRange.to, "yyyy-MM-dd")} ${customDateRange.endTime}`,
-          }
-        : undefined;
+      // Build date filter on D0 (Event Start Time) column
+      let dateFilter: { startDate: string; endDate: string; columnId: string } | undefined;
+      if (eventsFilter === "custom" && customDateRange && startTimeCol) {
+        dateFilter = {
+          startDate: `${format(customDateRange.from, "yyyy-MM-dd")} ${customDateRange.startTime}:00`,
+          endDate: `${format(customDateRange.to, "yyyy-MM-dd")} ${customDateRange.endTime}:00`,
+          columnId: startTimeCol.sensorId,
+        };
+      }
 
-      const res = await getCustomTableRows(devId, currentPage, itemsPerPage, dateRange);
+      const res = await getCustomTableRows(devId, currentPage, itemsPerPage, dateFilter);
       if (res.success && res.data) {
         setTableRows(res.data.rows?.map((r) => r.data) || []);
         setTotalCount(res.data.totalCount || 0);
@@ -188,7 +196,7 @@ const MachineTimeline = () => {
       setDataLoading(false);
       setTimeout(() => setShowRows(true), 100);
     }
-  }, [selectedMachine, machineToDeviceId, currentPage, itemsPerPage, eventsFilter, customDateRange]);
+  }, [selectedMachine, machineToDeviceId, currentPage, itemsPerPage, eventsFilter, customDateRange, startTimeCol]);
 
   useEffect(() => {
     fetchTableData();
@@ -203,12 +211,6 @@ const MachineTimeline = () => {
   const totalPages = Math.ceil(totalCount / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + tableRows.length, totalCount);
-
-  // ── Dynamically find chart columns from metadata ──
-  const startTimeCol = columns.find((c) => c.sensorName.toLowerCase().includes("start time") || c.sensorName.toLowerCase().includes("event start"));
-  const endTimeCol = columns.find((c) => c.sensorName.toLowerCase().includes("end time") || c.sensorName.toLowerCase().includes("event end"));
-  const statusCol = columns.find((c) => c.sensorName.toLowerCase().includes("machine status"));
-  const reasonCol = columns.find((c) => c.sensorName.toLowerCase().includes("reason"));
 
   // Client-side filters: search, column filters, and events filter (machine status)
   const filteredRows = tableRows.filter((row) => {

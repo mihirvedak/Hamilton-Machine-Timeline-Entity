@@ -276,17 +276,30 @@ export async function getCustomTableRows(
   devID: string,
   page = 1,
   limit = 100,
-  dateRange?: { startTime: string; endTime: string }
+  dateFilter?: { startDate: string; endDate: string; columnId: string }
 ): Promise<CustomTableResponse> {
+  const body: Record<string, unknown> = {
+    devID,
+    page,
+    limit,
+    rawData: true,
+  };
+
+  if (dateFilter) {
+    body.search = {
+      data: {
+        [dateFilter.columnId]: [{
+          startDate: dateFilter.startDate,
+          endDate: dateFilter.endDate,
+          timeFormat: "YYYY-MM-DD HH:mm:ss",
+        }],
+      },
+    };
+  }
+
   return request<CustomTableResponse>(
     `${BASE_URL}/api/account/table/getRows3`,
     "PUT",
-    {
-      devID,
-      page,
-      limit,
-      rawData: true,
-      ...(dateRange ? { startTime: dateRange.startTime, endTime: dateRange.endTime } : {}),
-    }
+    body
   );
 }
