@@ -126,15 +126,25 @@ const MachineTimeline = () => {
           });
 
           // Filter: only show columns where params has t=1
+          const hiddenNamePatterns = [
+            "avg process time",
+            "avg cycle time",
+            "rejection qty",
+            "rejection quantity",
+            "rejection quanntity",
+          ];
           const visibleCols: ColumnDef[] = [];
           for (const [sensorId, paramList] of Object.entries(params)) {
             const hasT1 = Array.isArray(paramList) && paramList.some(
               (p) => p.paramName === "t" && String(p.paramValue) === "1"
             );
             if (hasT1) {
+              const name = sensorMap[sensorId] || sensorId;
+              const nameLower = name.toLowerCase();
+              if (hiddenNamePatterns.some((pat) => nameLower.includes(pat))) continue;
               visibleCols.push({
                 sensorId,
-                sensorName: sensorMap[sensorId] || sensorId,
+                sensorName: name,
               });
             }
           }
